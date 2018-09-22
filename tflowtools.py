@@ -167,7 +167,7 @@ def gen_symvect_dataset(vlen,count):
     cases = gen_symvect_cases(vlen,s1) + gen_anti_symvect_cases(vlen,s2)
     NPR.shuffle(cases)
     cases = np.array(cases)
-    return np.array([[cases[i,:vlen], cases[i,-1:]] for i in range(len(cases))])
+    return [[cases[i,:vlen], int_to_one_hot(cases[i,-1],2)] for i in range(len(cases))]
 
 # ****** LINES (horiz and vert) in arrays *********
 
