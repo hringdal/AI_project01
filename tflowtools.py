@@ -5,7 +5,7 @@ import numpy as np
 import copy
 import math
 import os  # For starting up tensorboard from inside python
-import matplotlib.pyplot as PLT
+import matplotlib.pyplot as plt
 import scipy.cluster.hierarchy as SCH  # Needed for dendrograms
 import numpy.random as NPR
 
@@ -166,7 +166,8 @@ def gen_symvect_dataset(vlen,count):
     s1 = math.floor(count/2); s2 = count - s1
     cases = gen_symvect_cases(vlen,s1) + gen_anti_symvect_cases(vlen,s2)
     NPR.shuffle(cases)
-    return cases
+    cases = np.array(cases)
+    return np.array([[cases[i,:vlen], cases[i,-1:]] for i in range(len(cases))])
 
 # ****** LINES (horiz and vert) in arrays *********
 
@@ -339,32 +340,45 @@ def pp_matrix(m,style='{:.3f}'):
     print()
 
 # *******  DATA PLOTTING ROUTINES *********
-
+# NOT CURRENTLY USED
 def simple_plot(yvals,xvals=None,xtitle='X',ytitle='Y',title='Y = F(X)'):
     xvals = xvals if xvals is not None else list(range(len(yvals)))
-    PLT.plot(xvals,yvals)
-    PLT.xlabel(xtitle); PLT.ylabel(ytitle); PLT.title(title)
-    PLT.legend()
-    PLT.draw()
+    plt.plot(xvals,yvals)
+    plt.xlabel(xtitle); plt.ylabel(ytitle); plt.title(title)
+    plt.legend()
+    plt.draw()
 
+
+def plot_training_history(error_hist, validation_hist=[], xlabel='Epoch', ylabel='Error', title='History'):
+    plt.figure(figsize=(8,8))
+    plt.title(title)
+    if len(error_hist) > 0:
+        plt.plot([x[1] for x in error_hist], [x[0] for x in error_hist], c=c[0], label='Test error')
+
+    if len(validation_hist) > 0:
+        plt.plot([x[1] for x in validation_hist], [x[0] for x in validation_hist], c=c[1], label='Validation error')
+
+    plt.legend(loc='best')
+
+"""
 # Each history is a list of pairs (timestamp, value).
 def plot_training_history(error_hist,validation_hist=[],xtitle="Epoch",ytitle="Error",title="History",fig=True):
-    PLT.ion()
-    PLT.legend()
-    if fig: PLT.figure()
+    plt.ion()
+    plt.legend()
+    if fig: plt.figure()
     if len(error_hist) > 0:
         simple_plot([p[1] for p in error_hist], [p[0] for p in error_hist],xtitle=xtitle,ytitle=ytitle,title=title)
-        PLT.hold(True)
+        plt.hold(True)
     if len(validation_hist) > 0:
         simple_plot([p[1] for p in validation_hist], [p[0] for p in validation_hist])
-    PLT.ioff()
-
+    plt.ioff()
+"""
 # alpha = transparency
 def simple_scatter_plot(points,alpha=0.5,radius=3):
     colors = ['red','green','blue','magenta','brown','yellow','orange','brown','purple','black']
     a = np.array(points).transpose()
-    PLT.scatter(a[0],a[1],c=colors,alpha=alpha,s=np.pi*radius**2)
-    PLT.draw()
+    plt.scatter(a[0],a[1],c=colors,alpha=alpha,s=np.pi*radius**2)
+    plt.draw()
 
 # This is Hinton's classic plot of a matrix (which may represent snapshots of weights or a time series of
 # activation values).  Each value is represented by a red (positive) or blue (negative) square whose size reflects
@@ -377,7 +391,7 @@ def simple_scatter_plot(points,alpha=0.5,radius=3):
 
 def hinton_plot(matrix, maxval=None, maxsize=1, fig=None,trans=True,scale=True, title='Hinton plot',
                 colors=['gray','red','blue','white']):
-    hfig = fig if fig else PLT.figure()
+    hfig = fig if fig else plt.figure()
     hfig.suptitle(title,fontsize=18)
     if trans: matrix = matrix.transpose()
     if maxval == None: maxval = np.abs(matrix).max()
@@ -387,7 +401,7 @@ def hinton_plot(matrix, maxval=None, maxsize=1, fig=None,trans=True,scale=True, 
     axes.clear()
     axes.patch.set_facecolor(colors[0]);  # This is the background color.  Hinton uses gray
     axes.set_aspect('auto','box')  # Options: ('equal'), ('equal','box'), ('auto'), ('auto','box')..see matplotlib docs
-    axes.xaxis.set_major_locator(PLT.NullLocator()); axes.yaxis.set_major_locator(PLT.NullLocator())
+    axes.xaxis.set_major_locator(plt.NullLocator()); axes.yaxis.set_major_locator(plt.NullLocator())
 
     ymax = (matrix.shape[1] - 1)* maxsize
     for (x, y), val in np.ndenumerate(matrix):
@@ -395,11 +409,11 @@ def hinton_plot(matrix, maxval=None, maxsize=1, fig=None,trans=True,scale=True, 
         if scale: size = max(0.01,np.sqrt(min(maxsize,maxsize*np.abs(val)/maxval)))
         else: size = np.sqrt(min(np.abs(val),maxsize))  # The original version did not include scaling
         bottom_left = [x - size / 2, (ymax - y) - size / 2] # (ymax - y) to invert: row 0 at TOP of diagram
-        blob = PLT.Rectangle(bottom_left, size, size, facecolor=color, edgecolor=colors[3])
+        blob = plt.Rectangle(bottom_left, size, size, facecolor=color, edgecolor=colors[3])
         axes.add_patch(blob)
     axes.autoscale_view()
-    PLT.draw()
-    PLT.pause(.001)
+    plt.draw()
+    plt.pause(.001)
 
 # This graphically displays a matrix with color codes for positive, negative, small positive and small negative,
 # with the latter 2 defined by the 'cutoff' argument.  The transpose (trans) arg defaults to
@@ -408,14 +422,14 @@ def hinton_plot(matrix, maxval=None, maxsize=1, fig=None,trans=True,scale=True, 
 
 def display_matrix(matrix,fig=None,trans=True,scale=True, title='Matrix',tform='{:.3f}',tsize=12,
                    cutoff=0.1,colors=['red','yellow','grey','blue']):
-    hfig = fig if fig else PLT.figure()
+    hfig = fig if fig else plt.figure()
     hfig.suptitle(title,fontsize=18)
     if trans: matrix = matrix.transpose()
     axes = hfig.gca()
     axes.clear()
     axes.patch.set_facecolor('white');  # This is the background color.  Hinton uses gray
     axes.set_aspect('auto','box')  # Options: ('equal'), ('equal','box'), ('auto'), ('auto','box')..see matplotlib docs
-    axes.xaxis.set_major_locator(PLT.NullLocator()); axes.yaxis.set_major_locator(PLT.NullLocator())
+    axes.xaxis.set_major_locator(plt.NullLocator()); axes.yaxis.set_major_locator(plt.NullLocator())
 
     ymax = matrix.shape[1] - 1
     for (x, y), val in np.ndenumerate(matrix):
@@ -424,14 +438,14 @@ def display_matrix(matrix,fig=None,trans=True,scale=True, title='Matrix',tform='
         botleft = [x - 1/2, (ymax - y) - 1/2] # (ymax - y) to invert: row 0 at TOP of diagram
         # This is a hack, but I seem to need to add these blank blob rectangles first, and then I can add the text
         # boxes.  If I omit the blobs, I get just one plotted textbox...grrrrrr.
-        blob = PLT.Rectangle(botleft, 1,1, facecolor='white',edgecolor='white')
+        blob = plt.Rectangle(botleft, 1,1, facecolor='white',edgecolor='white')
         axes.add_patch(blob)
         axes.text(botleft[0]+0.5,botleft[1]+0.5,tform.format(val),
                   bbox=dict(facecolor=color,alpha=0.5,edgecolor='white'),ha='center',va='center',
                   color='black',size=tsize)
     axes.autoscale_view()
-    PLT.draw()
-    PLT.pause(1)
+    plt.draw()
+    plt.pause(1)
 
 # ****** Principle Component Analysis (PCA) ********
 # This performs the basic operations outlined in "Python Machine Learning" (pp.128-135).  It begins with
@@ -462,10 +476,10 @@ def gen_dim_reduced_data(feature_array,target_size,eigen_values,eigen_vectors):
 # mode = single, average, complete, centroid, ward, median
 # metric = euclidean, cityblock (manhattan), hamming, cosine, correlation ... (see matplotlib distance.pdist for all 23)
 def dendrogram(features,labels,metric='euclidean',mode='average',ax=None,title='Dendrogram',orient='top',lrot=90.0):
-    ax = ax if ax else PLT.gca()
+    ax = ax if ax else plt.gca()
     cluster_history = SCH.linkage(features,method=mode,metric=metric)
     SCH.dendrogram(cluster_history,labels=labels,orientation=orient,leaf_rotation=lrot)
-    PLT.tight_layout()
+    plt.tight_layout()
     ax.set_title(title)
     ax.set_ylabel(metric + ' distance')
-    PLT.show()
+    plt.show()
