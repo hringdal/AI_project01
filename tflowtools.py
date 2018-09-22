@@ -344,11 +344,13 @@ def simple_plot(yvals,xvals=None,xtitle='X',ytitle='Y',title='Y = F(X)'):
     xvals = xvals if xvals is not None else list(range(len(yvals)))
     PLT.plot(xvals,yvals)
     PLT.xlabel(xtitle); PLT.ylabel(ytitle); PLT.title(title)
+    PLT.legend()
     PLT.draw()
 
 # Each history is a list of pairs (timestamp, value).
 def plot_training_history(error_hist,validation_hist=[],xtitle="Epoch",ytitle="Error",title="History",fig=True):
     PLT.ion()
+    PLT.legend()
     if fig: PLT.figure()
     if len(error_hist) > 0:
         simple_plot([p[1] for p in error_hist], [p[0] for p in error_hist],xtitle=xtitle,ytitle=ytitle,title=title)
