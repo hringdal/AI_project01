@@ -353,6 +353,8 @@ def plot_training_history(error_hist, validation_hist=[], xlabel='Epoch', ylabel
     print('yoyoyoyoyoyoyoyoyoyoyo')
     plt.figure(figsize=(8,8))
     plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     if len(error_hist) > 0:
         plt.plot([x[0] for x in error_hist], [x[1] for x in error_hist], label='Test error')
 
