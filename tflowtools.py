@@ -354,10 +354,10 @@ def plot_training_history(error_hist, validation_hist=[], xlabel='Epoch', ylabel
     plt.figure(figsize=(8,8))
     plt.title(title)
     if len(error_hist) > 0:
-        plt.plot([x[1] for x in error_hist], [x[0] for x in error_hist], c=c[0], label='Test error')
+        plt.plot([x[1] for x in error_hist], [x[0] for x in error_hist], label='Test error')
 
     if len(validation_hist) > 0:
-        plt.plot([x[1] for x in validation_hist], [x[0] for x in validation_hist], c=c[1], label='Validation error')
+        plt.plot([x[1] for x in validation_hist], [x[0] for x in validation_hist], label='Validation error')
 
     plt.legend(loc='best')
 
