@@ -350,16 +350,15 @@ def simple_plot(yvals,xvals=None,xtitle='X',ytitle='Y',title='Y = F(X)'):
 
 
 def plot_training_history(error_hist, validation_hist=[], xlabel='Epoch', ylabel='Error', title='History'):
-    print('yoyoyoyoyoyoyoyoyoyoyo')
     plt.figure(figsize=(8,8))
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     if len(error_hist) > 0:
-        plt.plot([x[0] for x in error_hist], [x[1] for x in error_hist], label='Test error')
+        plt.plot([x[0] for x in error_hist], [x[1] for x in error_hist], label='Validation error')
 
     if len(validation_hist) > 0:
-        plt.plot([x[0] for x in validation_hist], [x[1] for x in validation_hist], label='Validation error')
+        plt.plot([x[0] for x in validation_hist], [x[1] for x in validation_hist], label='Test error')
 
     plt.legend(loc='best')
 
