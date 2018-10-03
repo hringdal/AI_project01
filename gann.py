@@ -110,7 +110,7 @@ class Gann:
         if cost_func == 'rmse':
             self.error = tf.sqrt(tf.reduce_mean(tf.square(self.target - self.output)),  name='RMSE')
         elif cost_func == 'cross-entropy':
-            self.error = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.target, logits=self.output)
+            self.error = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.target, logits=self.output), name='cross-entropy')
         else:
             # defaults to MSE
             self.error = tf.reduce_mean(tf.square(self.target - self.output), name='MSE')
@@ -179,7 +179,7 @@ class Gann:
             error += grabvals[0]
 
             if i % self.validation_interval == 0:
-                print('Training Set Error = {}'.format(grabvals[0]))
+                print('Training Set Error =   {:.6f}'.format(np.mean(grabvals[0])))
 
             self.error_history.append((step, error))
             self.consider_validation_testing(step,sess)
@@ -616,6 +616,3 @@ def main():
         ann.close_current_session(view=False)
 
     PLT.show()
-
-
-main()

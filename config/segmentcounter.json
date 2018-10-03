@@ -3,7 +3,7 @@
     "network_dimensions" : [25, 50,50, 9],
     "hidden_activation_function" : "relu",
     "output_activation_function" : "softmax",
-    "cost_function" : "cross-entropy",
+    "cost_function" : "mse",
     "learning_rate" : 0.1,
     "initial_weight_range" : [-0.1, 0.1],
     "optimizer" : "adam",
