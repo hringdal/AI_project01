@@ -115,14 +115,17 @@ class Gann():
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         self.trainer = optimizer.minimize(self.error,name='Backprop')
 
-    def do_training(self, sess, cases, epochs=100, continued=False):
+    def do_training(self, sess, cases, steps=100, continued=False):
         if not(continued):
             self.error_history = []
 
+        '''
         for i in range(epochs):
             error = 0; step = self.global_training_step + i
             gvars = [self.error] + self.grabvars
             mbs = self.minibatch_size; ncases = len(cases); nmb = math.ceil(ncases/mbs)
+
+            
             for cstart in range(0,ncases,mbs):  # Loop through cases, one minibatch at a time.
                 cend = min(ncases,cstart+mbs)
                 minibatch = cases[cstart:cend]
@@ -134,7 +137,8 @@ class Gann():
 
             self.error_history.append((step, error/nmb))
             self.consider_validation_testing(step,sess)
-        """
+            '''
+
         for i in range(steps):
             error = 0
             step = self.global_training_step + i
@@ -157,8 +161,8 @@ class Gann():
 
             self.error_history.append((step, error))
             self.consider_validation_testing(step,sess)
-        """
-        self.global_training_step += epochs
+
+        self.global_training_step += steps
 
         TFT.plot_training_history(self.error_history,self.validation_history,xtitle="Epoch",ytitle="Error",
                                   title="",fig=not(continued))
@@ -331,10 +335,11 @@ class Gannmodule():
 
 class Caseman():
 
-    def __init__(self,cfunc,vfrac=0,tfrac=0):
+    def __init__(self,cfunc,vfrac=0,tfrac=0, standardizing=False):
         self.casefunc = cfunc
         self.validation_fraction = vfrac
         self.test_fraction = tfrac
+        self.standardizing = standardizing
         self.training_fraction = 1 - (vfrac + tfrac)
         self.generate_cases()
         self.organize_cases()
@@ -345,13 +350,37 @@ class Caseman():
     def organize_cases(self):
         ca = np.array(self.cases)
         np.random.shuffle(ca) # Randomly shuffle all cases
+
+        if self.standardizing:
+            data, _,_ = self.standardize(self.get_input_data(ca))
+            targets = self.get_targets(ca)
+            self.cases = self.combine_data(data, targets)
+        else:
+            self.cases = ca
+
         separator1 = round(len(self.cases) * self.training_fraction)
         separator2 = separator1 + round(len(self.cases)*self.validation_fraction)
-        self.training_cases = ca[0:separator1]
-        self.validation_cases = ca[separator1:separator2]
-        self.testing_cases = ca[separator2:]
+        self.training_cases = self.cases[0:separator1]
+        self.validation_cases = self.cases[separator1:separator2]
+        self.testing_cases = self.cases[separator2:]
 
-        # TODO standardize
+    def standardize(self, x):
+        """Standardize the original data set."""
+        mean_x = np.mean(x, axis=0)
+        x = x - mean_x
+        std_x = np.std(x, axis=0)
+        std_x[std_x == 0] = 1
+        x = x / std_x
+        return x, mean_x, std_x
+
+    def get_input_data(self, data):
+        return [data[i][0] for i in range(np.shape(data)[0])]
+
+    def get_targets(self, data):
+        return [data[i][1] for i in range(np.shape(data)[0])]
+
+    def combine_data(self, data, targets):
+        return [[data[i], targets[i]] for i in range(np.shape(targets)[0])]
 
     def get_training_cases(self):
         return self.training_cases
@@ -363,33 +392,29 @@ class Caseman():
 
 #   ****  MAIN functions ****
 
-def countex(epochs=100,nbits=15,ncases=500,learning_rate=0.001,mbs=64,vfrac=0.1,tfrac=0.1,vint=200,sm=True,bestk=1, mapping=False, dendrogram=False, weight_bias=False):
-    case_generator = (lambda: TFT.gen_vector_count_cases(ncases,nbits))
-    cman = Caseman(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
-    ann = Gann(dims=[nbits, 100, nbits+1], cman=cman, learning_rate=learning_rate, mbs=mbs, vint=vint, softmax=sm)
-    ann.run(epochs,bestk=bestk)
-    if mapping:
-        ann.reopen_current_session()
-        layers = [0,1]
-        ann.do_mapping(layers)
-        ann.close_current_session(view=False)
+def load_poker_dataset(fraction=0.1):
+    data = np.loadtxt('data/poker.txt', delimiter=',')
 
-    if dendrogram:
-        ann.reopen_current_session()
-        ann.do_dendrogram([0])
-        ann.close_current_session(view=False)
-    if weight_bias:
-        ann.reopen_current_session()
-        ann.do_wgt_bias_view([0,1], type='bias')
-        ann.close_current_session(view=False)
-    PLT.show()
-    return ann
+    data_length = np.shape(data)[0]
+    reduced_indices = np.random.choice([i for i in range(data_length)], int(fraction * data_length), replace=False)
+    data = data[reduced_indices]
+    # targets between 0 and 9
+
+    return [[x[:10], TFT.int_to_one_hot(int(x[10]), 10)] for x in data]
 
 
 def load_wine_dataset():
     data = np.loadtxt('data/winequality_red.txt', delimiter=';')
     # targets are between 3 and 8. Offset left by three to use onehot-encoding
-    return [[x[:11], TFT.int_to_one_hot(int(x[11]) - 3, 6)] for x in data]
+    return [[x[:11], TFT.int_to_one_hot(int(x[11])-3, 6)] for x in data]
+
+
+def poker(epochs=800, learning_rate=0.001, batch_size=128, vfrac=0.1, tfrac=0.1, vint=100, sm=True, bestk=1):
+    case_generator = (lambda: load_poker_dataset())
+    cman = Caseman(case_generator, vfrac=vfrac, tfrac=tfrac)
+    ann = Gann(dims=[10, 200, 10], cman=cman, lrate=learning_rate, mbs=batch_size, vint=vint, softmax=sm)
+    ann.run(epochs,bestk=bestk)
+    PLT.show()
 
 
 def load_yeast_dataset():
