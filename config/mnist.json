@@ -20,5 +20,6 @@
     "display_weights" : [],
     "display_biases" : [],
     "sm": 1,
-    "bestk": 1
+    "bestk": 1,
+    "standardize": 1
 }

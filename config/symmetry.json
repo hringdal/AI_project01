@@ -22,5 +22,6 @@
     "nbits": 101,
     "ncases": 2000,
     "sm": 1,
-    "bestk": 1
+    "bestk": 1,
+    "standardize": 0
 }

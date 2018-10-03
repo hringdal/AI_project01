@@ -25,5 +25,6 @@
     "max_seg": 8,
     "one_hot": "True",
     "sm": 1,
-    "bestk": 1
+    "bestk": 1,
+    "standardize": 0
 }

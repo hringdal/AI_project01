@@ -1,12 +1,12 @@
 import tensorflow as tf
 import numpy as np
-import math
 import matplotlib.pyplot as PLT
 import tflowtools2 as TFT
 import os
 import json
 
-class Gann():
+
+class Gann:
 
     def __init__(self, dims, cman, settings, learning_rate=.1, mbs=10, vint=None, softmax=False):
         self.learning_rate = learning_rate
@@ -37,7 +37,7 @@ class Gann():
     def get_values(self, modules, type='out'):
 
         length_cases = len(self.caseman.get_testing_cases())
-        indices = np.random.choice(length_cases, 10)
+        indices = np.random.choice(length_cases, self.settings['map_batch_size'])
         samples = self.caseman.get_testing_cases()[indices]
         for module in modules:
             self.add_grabvar(module, type=type)
@@ -91,7 +91,7 @@ class Gann():
 
             invar = gmod.output; insize = gmod.outsize
 
-        self.output = gmod.output # Output of last module is output of whole network
+        self.output = gmod.output  # Output of last module is output of whole network
 
         if self.softmax_outputs:
             self.output = tf.nn.softmax(self.output)
@@ -104,18 +104,35 @@ class Gann():
     # of the weight array.
 
     def configure_learning(self):
-        # TODO: all error functions
+        # configure cost function
+        cost_func = self.settings['cost_function']
 
-        self.error = tf.reduce_mean(tf.square(self.target - self.output),name='MSE')
-        #self.error = tf.losses.softmax_cross_entropy(onehot_labels=self.target,
-         #                                            logits=self.output)
+        if cost_func == 'rmse':
+            self.error = tf.sqrt(tf.reduce_mean(tf.square(self.target - self.output)),  name='RMSE')
+        elif cost_func == 'cross-entropy':
+            self.error = tf.nn.softmax_cross_entropy_with_logits_v2(labels=self.target, logits=self.output)
+        else:
+            # defaults to MSE
+            self.error = tf.reduce_mean(tf.square(self.target - self.output), name='MSE')
 
         self.predictor = self.output  # Simple prediction runs will request the value of output neurons
-        # Defining the training operator
-        # TODO: all optimizers
-        #optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
-        optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        self.trainer = optimizer.minimize(self.error,name='Backprop')
+
+        # configure optimizer
+        opt_name = self.settings['optimizer']
+
+        if opt_name == 'adam':
+            optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        elif opt_name == 'gradient':
+            optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
+        elif opt_name == 'rmsprop':
+            optimizer = tf.train.RMSPropOptimizer(self.learning_rate)
+        elif opt_name == 'adagrad':
+            optimizer = tf.train.AdagradOptimizer(self.learning_rate)
+        else:
+            # defaults to gradient descent
+            optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
+
+        self.trainer = optimizer.minimize(self.error, name='Backprop')
 
     def do_training(self, sess, cases, steps=100, continued=False):
         if not(continued):
@@ -160,6 +177,9 @@ class Gann():
                                                feed_dict=feeder, step=step)
 
             error += grabvals[0]
+
+            if i % self.validation_interval == 0:
+                print('Training Set Error = {}'.format(grabvals[0]))
 
             self.error_history.append((step, error))
             self.consider_validation_testing(step,sess)
@@ -230,7 +250,7 @@ class Gann():
     # Similar to the "quickrun" functions used earlier.
 
     def run_one_step(self, operators, grabbed_vars=None, probed_vars=None, dir='probeview',
-                  session=None, feed_dict=None, step=1):
+                     session=None, feed_dict=None, step=1):
         sess = session if session else TFT.gen_initialized_session(dir=dir)
         if probed_vars is not None:
             results = sess.run([operators, grabbed_vars, probed_vars], feed_dict=feed_dict)
@@ -287,8 +307,7 @@ class Gann():
 
 
 # A general ann module = a layer of neurons (the output) plus its incoming weights and biases.
-class Gannmodule():
-
+class Gannmodule:
     def __init__(self,ann,index,invariable,insize,outsize, is_output=False):
         self.ann = ann
         self.insize=insize  # Number of neurons feeding into this module
@@ -301,15 +320,31 @@ class Gannmodule():
 
     def build(self):
         mona = self.name; n = self.outsize
-        self.weights = tf.Variable(np.random.uniform(-.1, .1, size=(self.insize,n)),
-                                   name=mona+'-wgt',trainable=True) # True = default for trainable anyway
-        self.biases = tf.Variable(np.random.uniform(-.1, .1, size=n),
+
+        init_weights = self.ann.settings['initial_weight_range']
+
+        self.weights = tf.Variable(np.random.uniform(init_weights[0], init_weights[1], size=(self.insize, n)),
+                                   name=mona+'-wgt', trainable=True)  # True = default for trainable anyway
+        self.biases = tf.Variable(np.random.uniform(init_weights[0], init_weights[1], size=n),
                                   name=mona+'-bias', trainable=True)  # First bias vector
 
         if self.is_output:
+            # avoid hidden layer activation on output
             self.output = tf.matmul(self.input, self.weights) + self.biases
         else:
-            self.output = tf.nn.relu(tf.matmul(self.input, self.weights) + self.biases, name=mona + '-out')
+            # get hidden layer activation function from settings
+            activation = self.ann.settings['hidden_activation_function']
+
+            if activation == 'tanh':
+                self.output = tf.nn.tanh(tf.matmul(self.input, self.weights) + self.biases, name=mona + '-out')
+            elif activation == 'sigmoid':
+                self.output = tf.nn.sigmoid(tf.matmul(self.input, self.weights) + self.biases, name=mona + '-out')
+            elif activation == 'leaky_relu':
+                self.output = tf.nn.relu(tf.matmul(self.input, self.weights) + self.biases, name=mona + '-out')
+            else:
+                # defaults to ReLU
+                self.output = tf.nn.relu(tf.matmul(self.input, self.weights) + self.biases, name=mona + '-out')
+
         self.ann.add_module(self)
 
     def getvar(self,type):  # type = (in,out,wgt,bias)
@@ -351,7 +386,7 @@ class Caseman():
 
     def organize_cases(self):
         ca = np.array(self.cases)
-        np.random.shuffle(ca) # Randomly shuffle all cases
+        np.random.shuffle(ca)  # Randomly shuffle all cases
 
         if self.standardizing:
             data, _,_ = self.standardize(self.get_input_data(ca))
@@ -386,8 +421,10 @@ class Caseman():
 
     def get_training_cases(self):
         return self.training_cases
+
     def get_validation_cases(self):
         return self.validation_cases
+
     def get_testing_cases(self):
         return self.testing_cases
 
@@ -409,14 +446,6 @@ def load_wine_dataset():
     data = np.loadtxt('data/winequality_red.txt', delimiter=';')
     # targets are between 3 and 8. Offset left by three to use onehot-encoding
     return [[x[:11], TFT.int_to_one_hot(int(x[11])-3, 6)] for x in data]
-
-
-def poker(epochs=800, learning_rate=0.001, batch_size=128, vfrac=0.1, tfrac=0.1, vint=100, sm=True, bestk=1):
-    case_generator = (lambda: load_poker_dataset(settings['case_fraction']))
-    cman = Caseman(case_generator, vfrac=vfrac, tfrac=tfrac)
-    ann = Gann(dims=[10, 200, 10], cman=cman, lrate=learning_rate, mbs=batch_size, vint=vint, softmax=sm)
-    ann.run(epochs,bestk=bestk)
-    PLT.show()
 
 
 def load_yeast_dataset():
@@ -534,7 +563,8 @@ def main():
     # Case manager
     case_manager = Caseman(cfunc=case_generator,
                            vfrac=settings['validation_fraction'],
-                           tfrac=settings['test_fraction'])
+                           tfrac=settings['test_fraction'],
+                           standardizing=settings['standardize'])
 
     # Build network
     ann = Gann(dims=settings['network_dimensions'],
