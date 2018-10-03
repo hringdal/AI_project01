@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import os
 
 dataset = {
     'NETWORK_DIMENSIONS' : [5, 20, 20, 2], # 
@@ -505,22 +506,20 @@ def autoex(epochs=300, nbits=4, learning_rate=0.03, showint=100, batch_size=None
     batch_size = batch_size if batch_size else size
     case_generator = (lambda : TFT.gen_all_one_hot_cases(2**nbits))
     case_manager = CaseManager(cfunc=case_generator,vfrac=vfrac,tfrac=tfrac)
-    ann = Gann(dims=[size,nbits,size],case_manager=case_manager,learning_rate=learning_rate,showint=showint,batch_size=batch_size,vint=vint,softmax=sm)
-    #ann.gen_probe(0,'wgt',('hist','avg'))  # Plot a histogram and avg of the incoming weights to module 0.
-    #ann.gen_probe(1,'out',('avg','max'))  # Plot average and max value of module 1's output vector
-    #ann.add_grabvar(0,'wgt') # Add a grabvar (to be displayed in its own matplotlib window).
+    ann = Gann(dims=[size, nbits, size],case_manager=case_manager,learning_rate=learning_rate,showint=showint,batch_size=batch_size,vint=vint,softmax=sm)
     ann.run(epochs, bestk=bestk)
     ann.runmore(epochs*2, bestk=bestk)
     return ann
 
-def number_of_1s(epochs=6000, nbits=15, ncases=500, learning_rate=0.05, showint=None, batch_size=32, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
+
+def bitcounter(epochs=6000, nbits=15, ncases=500, learning_rate=0.05, showint=None, batch_size=32, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
     case_generator = (lambda: TFT.gen_vector_count_cases(ncases, nbits))
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
     ann = Gann(dims=[nbits, nbits*3, nbits+1], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
     plt.show()
     return ann
-  
+
 
 def parity(epochs=2000, nbits=10, learning_rate=0.001, showint=None, batch_size=256, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
     case_generator = (lambda: TFT.gen_all_parity_cases(nbits))
@@ -530,13 +529,12 @@ def parity(epochs=2000, nbits=10, learning_rate=0.001, showint=None, batch_size=
     plt.show()
     return ann
 
-  
+
 def symmetry(epochs=3000, nbits=101, ncases=2000, learning_rate=0.001, showint=1000, batch_size=512, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
     case_generator = (lambda: TFT.gen_symvect_dataset(nbits, ncases))
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
     ann = Gann(dims=[nbits, nbits*3, 2], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
-    # TFT.fireup_tensorboard('probeview')
     return ann
   
 
@@ -545,7 +543,6 @@ def segments(epochs=3001, length=25, ncases=1000, min_seg=0, max_seg=8, one_hot=
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
     ann = Gann(dims=[length, 500, max_seg-min_seg+1], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
-    # TFT.fireup_tensorboard('probeview')
     return ann
 
 
@@ -567,17 +564,14 @@ def yeast(epochs=5000, learning_rate=0.001, showint=0, batch_size=512, vfrac=0.1
 def glass(epochs=10000, learning_rate=0.0001, showint=0, batch_size=128, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
     case_generator = (lambda: load_glass_dataset())
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac, standardizing=True)
-    ann = Gann(dims=[9, 100, 100, 100, 100, 6], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
+    ann = Gann(dims=[9, 100, 100, 100, 6], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
     plt.show()
 
 
-def MNIST(epochs=2000, learning_rate=0.001, showint=0, batch_size=64, data_frac=0.1, vfrac=0.1, tfrac=0.1, vint=40, sm=True, bestk=1):
-    case_generator = (lambda: load_mnist(data_frac))
+def mnist(epochs=2000, learning_rate=0.001, showint=0, batch_size=64, case_fraction=0.1, vfrac=0.1, tfrac=0.1, vint=40, sm=True, bestk=1):
+    case_generator = (lambda: load_mnist(case_fraction))
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac, standardizing=True)
     ann = Gann(dims=[784, 150, 10], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
-    # TFT.fireup_tensorboard('probeview')
     return ann
-
-number_of_1s()

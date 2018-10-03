@@ -3,21 +3,23 @@ import numpy as np
 import math
 import matplotlib.pyplot as PLT
 import tflowtools2 as TFT
+import os
+import json
 
 class Gann():
 
-    def __init__(self, dims, cman,lrate=.1,mbs=10,vint=None,softmax=False):
-        self.learning_rate = lrate
-        self.layer_sizes = dims # Sizes of each layer of neurons
-        self.global_training_step = 0 # Enables coherent data-storage during extra training runs (see runmore).
+    def __init__(self, dims, cman, settings, learning_rate=.1, mbs=10, vint=None, softmax=False):
+        self.learning_rate = learning_rate
+        self.layer_sizes = dims  # Sizes of each layer of neurons
+        self.global_training_step = 0  # Enables coherent data-storage during extra training runs (see runmore).
         self.grabvars = []  # Variables to be monitored (by gann code) during a run.
-        self.grabvar_figures = [] # One matplotlib figure for each grabvar
         self.minibatch_size = mbs
         self.validation_interval = vint
         self.validation_history = []
         self.caseman = cman
         self.softmax_outputs = softmax
         self.modules = []
+        self.settings = settings
         self.build()
 
     # Probed variables are to be displayed in the Tensorboard.
@@ -28,7 +30,6 @@ class Gann():
     # grabvar gets its own matplotlib figure in which to display its value.
     def add_grabvar(self,module_index,type='wgt'):
         self.grabvars.append(self.modules[module_index].getvar(type))
-        self.grabvar_figures.append(PLT.figure())
 
     def roundup_probes(self):
         self.probes = tf.summary.merge_all()
@@ -36,7 +37,7 @@ class Gann():
     def get_values(self, modules, type='out'):
 
         length_cases = len(self.caseman.get_testing_cases())
-        indices = np.random.choice(length_cases, 15)
+        indices = np.random.choice(length_cases, 10)
         samples = self.caseman.get_testing_cases()[indices]
         for module in modules:
             self.add_grabvar(module, type=type)
@@ -46,7 +47,7 @@ class Gann():
 
         feeder = {self.input: inputs, self.target: targets}
 
-        _, values, session = self.run_map_step(self.predictor, self.grabvars, session=self.current_session, feed_dict=feeder)
+        _, values, session = self.run_one_step(self.predictor, self.grabvars, session=self.current_session, feed_dict=feeder)
 
         self.grabvars = []
         return values, targets
@@ -63,7 +64,6 @@ class Gann():
 
     def do_wgt_bias_view(self, modules, type):
         values, _ = self.get_values(modules, type=type)
-
 
         for layer in range(len(modules)):
             print(layer)
@@ -131,6 +131,7 @@ class Gann():
                 _,grabvals,_ = self.run_one_step([self.trainer],gvars,self.probes,session=sess,
                                          feed_dict=feeder,step=step)
                 error += grabvals[0]
+
             self.error_history.append((step, error/nmb))
             self.consider_validation_testing(step,sess)
         """
@@ -213,7 +214,7 @@ class Gann():
         if self.validation_interval and (epoch % self.validation_interval == 0):
             cases = self.caseman.get_validation_cases()
             if len(cases) > 0:
-                error = self.do_testing(sess,cases,msg='Validation Testing')
+                error = self.do_testing(sess,cases,msg='Validation')
                 self.validation_history.append((epoch,error))
 
     # Do testing (i.e. calc error without learning) on the training set.
@@ -233,24 +234,11 @@ class Gann():
 
         return results[0], results[1], sess
 
-    def run_map_step(self, operators, grabbed_vars=None, probed_vars=None, dir='probeview',
-                  session=None, feed_dict=None, step=1):
-        sess = session if session else TFT.gen_initialized_session(dir=dir)
-        if probed_vars is not None:
-            results = sess.run([operators, grabbed_vars, probed_vars], feed_dict=feed_dict)
-            sess.probe_stream.add_summary(results[2], global_step=step)
-        else:
-            results = sess.run([operators, grabbed_vars], feed_dict=feed_dict)
-
-        return results[0], results[1], sess
-
     def run(self,epochs=100,sess=None,continued=False,bestk=None):
-        #PLT.ion()
         self.training_session(epochs,sess=sess,continued=continued)
         self.test_on_trains(sess=self.current_session,bestk=bestk)
         self.testing_session(sess=self.current_session,bestk=bestk)
         self.close_current_session(view=False)
-        #PLT.ioff()
 
     # After a run is complete, runmore allows us to do additional training on the network, picking up where we
     # left off after the last call to run (or runmore).  Use of the "continued" parameter (along with
@@ -375,26 +363,10 @@ class Caseman():
 
 #   ****  MAIN functions ****
 
-# After running this, open a Tensorboard (Go to localhost:6006 in your Chrome Browser) and check the
-# 'scalar', 'distribution' and 'histogram' menu options to view the probed variables.
-def autoex(epochs=300,nbits=4,lrate=0.03, mbs=None,vfrac=0.1,tfrac=0.1,vint=100,sm=False,bestk=None):
-    size = 2**nbits
-    mbs = mbs if mbs else size
-    case_generator = (lambda : TFT.gen_all_one_hot_cases(2**nbits))
-    cman = Caseman(cfunc=case_generator,vfrac=vfrac,tfrac=tfrac)
-    ann = Gann(dims=[size,nbits,size],cman=cman,lrate=lrate,mbs=mbs,vint=vint,softmax=sm)
-    ann.gen_probe(0,'wgt',('hist','avg'))  # Plot a histogram and avg of the incoming weights to module 0.
-    ann.gen_probe(1,'out',('avg','max'))  # Plot average and max value of module 1's output vector
-    ann.add_grabvar(0,'wgt') # Add a grabvar (to be displayed in its own matplotlib window).
-    ann.run(epochs,bestk=bestk)
-    ann.runmore(epochs*2,bestk=bestk)
-    TFT.fireup_tensorboard('probeview')
-    return ann
-
-def countex(epochs=100,nbits=15,ncases=500,lrate=0.001,mbs=64,vfrac=0.1,tfrac=0.1,vint=200,sm=True,bestk=1, mapping=False, dendrogram=False, weight_bias=False):
+def countex(epochs=100,nbits=15,ncases=500,learning_rate=0.001,mbs=64,vfrac=0.1,tfrac=0.1,vint=200,sm=True,bestk=1, mapping=False, dendrogram=False, weight_bias=False):
     case_generator = (lambda: TFT.gen_vector_count_cases(ncases,nbits))
     cman = Caseman(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
-    ann = Gann(dims=[nbits, 100, nbits+1], cman=cman, lrate=lrate, mbs=mbs, vint=vint, softmax=sm)
+    ann = Gann(dims=[nbits, 100, nbits+1], cman=cman, learning_rate=learning_rate, mbs=mbs, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
     if mapping:
         ann.reopen_current_session()
@@ -414,4 +386,172 @@ def countex(epochs=100,nbits=15,ncases=500,lrate=0.001,mbs=64,vfrac=0.1,tfrac=0.
     return ann
 
 
-countex()
+def load_wine_dataset():
+    data = np.loadtxt('data/winequality_red.txt', delimiter=';')
+    # targets are between 3 and 8. Offset left by three to use onehot-encoding
+    return [[x[:11], TFT.int_to_one_hot(int(x[11]) - 3, 6)] for x in data]
+
+
+def load_yeast_dataset():
+    data = np.loadtxt('data/yeast.txt', delimiter=',')
+    # targets between 1 and 10
+    return [[x[:8], TFT.int_to_one_hot(int(x[8]) - 1, 10)] for x in data]
+
+
+def load_glass_dataset():
+    data = np.loadtxt('data/glass.txt', delimiter=',')
+    # targets between 1 and 7, no examples of class 4
+    # reducing class labels above 4 by one, to use existing onehot-function
+    for i in range(len(data)):
+        if data[i][-1] >= 5:
+            data[i][-1] -= 1
+
+    return [[x[:9], TFT.int_to_one_hot(int(x[9]) - 1, 6)] for x in data]
+
+
+def load_mnist(fraction=0.1):
+    mnist = tf.keras.datasets.mnist.load_data(path='mnist.npz')
+    data_length = len(mnist[0][1])
+
+    reduced_indices = np.random.choice([i for i in range(data_length)], int(fraction * data_length), replace=False)
+
+    data = mnist[0][0][reduced_indices]
+    targets = mnist[0][1][reduced_indices]
+    data = [i.flatten() for i in data]
+
+    output = [[data[i], TFT.int_to_one_hot(targets[i], 10)] for i in range(len(targets))]
+    return output
+
+
+def is_integer(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def main():
+    ################################################
+    # Initial dataset choice
+    ################################################
+    path = 'config/'
+    print("Available datasets:")
+    for file in os.listdir(path):
+        print(os.path.splitext(file)[0])
+    print()
+
+    filename = input('Choose a dataset: ')
+
+    with open(path + filename + '.json') as f:
+        settings = json.load(f)
+    ################################################
+    # Edit parameters
+    ################################################
+    while True:
+        print('##########################')
+        print('Loaded following settings:')
+        print('##########################')
+        for key, value in settings.items():
+            print('{}: {}'.format(key, value))
+        print('##########################')
+
+        print('Enter a parameter name to make changes, or continue by pressing enter.. ')
+        print('Separate eventual list values with spaces')
+        choice = input('Choice: ')
+        if choice in settings.keys():
+            new_val = input('New value for ' + choice + ': ')
+
+            # convert list parameters to lists of integers or floats
+            if choice in ['network_dimensions', 'initial_weight_range', 'map_layers', 'map_dendrograms', 'display_weights', 'display_biases']:
+                new_val = new_val.split(' ')
+                new_val = [float(x) if '.' in x else int(x) for x in new_val]
+            elif is_integer(new_val):
+                new_val = int(new_val)
+
+            settings[choice] = new_val
+        else:
+            break
+    ################################################
+    # Feed parameters to generate dataset and create the GANN
+    ################################################
+    # Case generator
+    if filename == 'autoencoder':
+        case_generator = (lambda: TFT.gen_all_one_hot_cases(2**settings['nbits']))
+    elif filename == 'bitcounter':
+        case_generator = (lambda: TFT.gen_vector_count_cases(settings['ncases'], settings['nbits']))
+    elif filename == 'glass':
+        case_generator = (lambda: load_glass_dataset())
+    elif filename == 'mnist':
+        case_generator = (lambda: load_mnist(settings['case_fraction']))
+    elif filename == 'parity':
+        case_generator = (lambda: TFT.gen_all_parity_cases(settings['nbits']))
+    elif filename == 'segmentcounter':
+        settings['one_hot'] = True if settings['one_hot'] == 'True' else False
+        case_generator = (lambda: TFT.gen_segmented_vector_cases(settings['length'],
+                                                                 settings['ncases'],
+                                                                 settings['min_seg'],
+                                                                 settings['max_seg'],
+                                                                 settings['one_hot']))
+    elif filename == 'symmetry':
+        case_generator = (lambda: TFT.gen_symvect_dataset(settings['nbits'], settings['ncases']))
+    elif filename == 'wine':
+        case_generator = (lambda: load_wine_dataset())
+    elif filename == 'yeast':
+        case_generator = (lambda: load_yeast_dataset())
+    else:
+        raise ValueError()
+
+    # Case manager
+    case_manager = Caseman(cfunc=case_generator,
+                           vfrac=settings['validation_fraction'],
+                           tfrac=settings['test_fraction'])
+
+    # Build network
+    ann = Gann(dims=settings['network_dimensions'],
+               cman=case_manager,
+               learning_rate=settings['learning_rate'],
+               mbs=settings['minibatch_size'],
+               vint=settings['validation_interval'],
+               softmax=settings['sm'],
+               settings=settings
+               )
+
+    ################################################
+    # Run the network with provided parameters
+    ################################################
+    ann.run(epochs=settings['epochs'], bestk=settings['bestk'])
+
+    ################################################
+    # create hinton plots from layer activations
+    ################################################
+    if len(settings['map_layers']) > 0 and settings['map_batch_size'] > 0:
+        ann.reopen_current_session()
+        ann.do_mapping(settings['map_layers'])
+        ann.close_current_session(view=False)
+
+    ################################################
+    # create dendrograms from layer activations
+    ################################################
+    if len(settings['map_dendrograms']) > 0 and settings['map_batch_size'] > 0:
+        ann.reopen_current_session()
+        ann.do_dendrogram([0])
+        ann.close_current_session(view=False)
+
+    ################################################
+    # visualize weights and biases for given layers
+    ################################################
+    if len(settings['display_weights']) > 0:
+        ann.reopen_current_session()
+        ann.do_wgt_bias_view(settings['display_weights'], type='wgt')
+        ann.close_current_session(view=False)
+
+    if len(settings['display_biases']) > 0:
+        ann.reopen_current_session()
+        ann.do_wgt_bias_view(settings['display_biases'], type='bias')
+        ann.close_current_session(view=False)
+
+    PLT.show()
+
+
+main()
