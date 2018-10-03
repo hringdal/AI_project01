@@ -1,10 +1,10 @@
 {
     "name": "Yeast",
-    "network_dimensions" : [8, 200, 100, 10],
+    "network_dimensions" : [8, 100, 100, 10],
     "hidden_activation_function" : "relu",
     "output_activation_function" : "softmax",
     "cost_function" : "mse",
-    "learning_rate" : 0.001,
+    "learning_rate" : 0.01,
     "initial_weight_range" : [-0.1, 0.1],
     "optimizer" : "adam",
     "data_source" : "yeast",

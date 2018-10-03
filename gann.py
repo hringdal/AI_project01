@@ -40,7 +40,8 @@ class Gann:
 
         length_cases = len(self.caseman.get_testing_cases())
         indices = np.random.choice(length_cases, self.settings['map_batch_size'])
-        samples = self.caseman.get_testing_cases()[indices]
+        samples = self.caseman.get_testing_cases()
+        samples = np.array(samples)[indices]
         for module in modules:
             if module == 0:
                 self.add_grabvar(module, type='in') #input of data

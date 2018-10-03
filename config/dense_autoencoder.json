@@ -23,5 +23,6 @@
     "display_biases" : [],
     "nbits": 4,
     "sm": 1,
-    "bestk": 0
+    "bestk": 0,
+    "standardize": 0
 }
