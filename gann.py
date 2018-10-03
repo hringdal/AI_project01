@@ -66,7 +66,6 @@ class Gann:
         values, _ = self.get_values(modules, type=type)
 
         for layer in range(len(modules)):
-            print(layer)
             layer_value = values[layer]
             if type == 'bias':
                 layer_value = np.reshape(values[layer], (1, -1))

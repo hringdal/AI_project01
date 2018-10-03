@@ -7,7 +7,7 @@ def main():
     ################################################
     path = 'config/'
     print("Available datasets:")
-    for file in os.listdir(path):
+    for file in sorted(os.listdir(path)):
         print(os.path.splitext(file)[0])
     print()
 
@@ -22,12 +22,13 @@ def main():
         print('##########################')
         print('Loaded following settings:')
         print('##########################')
-        for key, value in settings.items():
+        for key, value in sorted(settings.items()):
             print('{}: {}'.format(key, value))
         print('##########################')
 
         print('Enter a parameter name to make changes, or continue by pressing enter.. ')
         print('Separate eventual list values with spaces')
+        print()
         choice = input('Choice: ')
         if choice in settings.keys():
             new_val = input('New value for ' + choice + ': ')
@@ -41,6 +42,8 @@ def main():
 
             settings[choice] = new_val
         elif not choice:
+            print('Building network ...')
+            print()
             break
         else:
             print('key not found, try again')
@@ -51,7 +54,7 @@ def main():
     if filename == 'autoencoder':
         case_generator = (lambda: TFT.gen_all_one_hot_cases(2**settings['nbits']))
     elif filename == 'dense_autoencoder':
-        case_generator = lambda: TFT.gen_dense_autoencoder_cases(settings['case_count'], settings['data_size'], dr=settings['data_range'])
+        case_generator = (lambda: TFT.gen_dense_autoencoder_cases(settings['case_count'], settings['data_size'], dr=settings['data_range']))
     elif filename == 'bitcounter':
         case_generator = (lambda: TFT.gen_vector_count_cases(settings['ncases'], settings['nbits']))
     elif filename == 'glass':
@@ -91,8 +94,7 @@ def main():
                mbs=settings['minibatch_size'],
                vint=settings['validation_interval'],
                softmax=settings['sm'],
-               settings=settings
-               )
+               settings=settings)
 
     ################################################
     # Run the network with provided parameters
@@ -130,8 +132,9 @@ def main():
         ann.close_current_session(view=False)
 
     PLT.show()
-    return
+
+    return ann
 
 
 if __name__ == '__main__':
-    main()
+    ann = main()
