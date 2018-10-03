@@ -82,14 +82,15 @@ class Gann():
         self.input = tf.placeholder(tf.float64, shape=(None, num_inputs), name='Input')
         invar = self.input; insize = num_inputs
         # Build all of the modules
-        for i,outsize in enumerate(self.layer_sizes[1:]):
+        for i, outsize in enumerate(self.layer_sizes[1:]):
 
-            if i == len(self.layer_sizes):
+            if i == len(self.layer_sizes) - 1:
                 gmod = Gannmodule(self, i, invar, insize, outsize, is_output=True)
             else:
                 gmod = Gannmodule(self,i,invar,insize,outsize)
 
             invar = gmod.output; insize = gmod.outsize
+
         self.output = gmod.output # Output of last module is output of whole network
 
         if self.softmax_outputs:
@@ -104,6 +105,7 @@ class Gann():
 
     def configure_learning(self):
         # TODO: all error functions
+
         self.error = tf.reduce_mean(tf.square(self.target - self.output),name='MSE')
         #self.error = tf.losses.softmax_cross_entropy(onehot_labels=self.target,
          #                                            logits=self.output)
@@ -561,8 +563,9 @@ def main():
     # create dendrograms from layer activations
     ################################################
     if len(settings['map_dendrograms']) > 0 and settings['map_batch_size'] > 0:
+        print('making dendrograms')
         ann.reopen_current_session()
-        ann.do_dendrogram([0])
+        ann.do_dendrogram(settings['map_dendrograms'])
         ann.close_current_session(view=False)
 
     ################################################
