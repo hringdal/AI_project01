@@ -186,7 +186,7 @@ class Gann():
 
         testres, grabvals, _ = self.run_one_step(self.test_func, self.grabvars, self.probes, session=sess,
                                            feed_dict=feeder)
-        if bestk is None:
+        if bestk is None or bestk == 0:
             print('%s Set Error = %f ' % (msg, testres))
         else:
             print('%s Set Correct Classifications = %f %%' % (msg, 100*(testres/len(cases))))
@@ -411,13 +411,6 @@ def load_wine_dataset():
     return [[x[:11], TFT.int_to_one_hot(int(x[11])-3, 6)] for x in data]
 
 
-def poker(epochs=800, learning_rate=0.001, batch_size=128, vfrac=0.1, tfrac=0.1, vint=100, sm=True, bestk=1):
-    case_generator = (lambda: load_poker_dataset(settings['case_fraction']))
-    cman = Caseman(case_generator, vfrac=vfrac, tfrac=tfrac)
-    ann = Gann(dims=[10, 200, 10], cman=cman, lrate=learning_rate, mbs=batch_size, vint=vint, softmax=sm)
-    ann.run(epochs,bestk=bestk)
-    PLT.show()
-
 
 def load_yeast_dataset():
     data = np.loadtxt('data/yeast.txt', delimiter=',')
@@ -497,14 +490,18 @@ def main():
                 new_val = int(new_val)
 
             settings[choice] = new_val
-        else:
+        elif not choice:
             break
+        else:
+            print('key not found, try again')
     ################################################
     # Feed parameters to generate dataset and create the GANN
     ################################################
     # Case generator
     if filename == 'autoencoder':
         case_generator = (lambda: TFT.gen_all_one_hot_cases(2**settings['nbits']))
+    elif filename == 'dense_autoencoder':
+        case_generator = lambda: TFT.gen_dense_autoencoder_cases(settings['case_count'], settings['data_size'], dr=settings['data_range'])
     elif filename == 'bitcounter':
         case_generator = (lambda: TFT.gen_vector_count_cases(settings['ncases'], settings['nbits']))
     elif filename == 'glass':
@@ -514,7 +511,7 @@ def main():
     elif filename == 'parity':
         case_generator = (lambda: TFT.gen_all_parity_cases(settings['nbits']))
     elif filename == 'segmentcounter':
-        settings['one_hot'] = True if settings['one_hot'] == 'True' else False
+        settings['one_hot'] = True if settings['one_hot'].lower() == 'true' else False
         case_generator = (lambda: TFT.gen_segmented_vector_cases(settings['length'],
                                                                  settings['ncases'],
                                                                  settings['min_seg'],

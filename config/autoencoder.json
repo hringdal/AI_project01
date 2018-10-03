@@ -12,7 +12,7 @@
     "validation_fraction" : 0.1,
     "validation_interval" : 200,
     "test_fraction" : 0.1,
-    "minibatch_size" : 16,
+    "minibatch_size" : 4,
     "epochs" : 300,
     "map_batch_size" : 0,
     "map_layers" : [],
