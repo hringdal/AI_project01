@@ -410,7 +410,7 @@ def load_wine_dataset():
 
 
 def poker(epochs=800, learning_rate=0.001, batch_size=128, vfrac=0.1, tfrac=0.1, vint=100, sm=True, bestk=1):
-    case_generator = (lambda: load_poker_dataset())
+    case_generator = (lambda: load_poker_dataset(settings['case_fraction']))
     cman = Caseman(case_generator, vfrac=vfrac, tfrac=tfrac)
     ann = Gann(dims=[10, 200, 10], cman=cman, lrate=learning_rate, mbs=batch_size, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
@@ -524,6 +524,8 @@ def main():
         case_generator = (lambda: load_wine_dataset())
     elif filename == 'yeast':
         case_generator = (lambda: load_yeast_dataset())
+    elif filename == 'poker':
+        case_generator = (lambda: load_poker_dataset(settings['case_fraction']))
     else:
         raise ValueError()
 
