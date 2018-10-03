@@ -322,10 +322,11 @@ def segmented_vector_string(v,pre='** ',post=' **'):
 
 # ***** PRIMITIVE DATA VIEWING ******
 
-def show_results(grabbed_vals,grabbed_vars=None,dir='probeview'):
+def show_results(grabbed_vals,grabbed_vars=None, dir='probeview'):
     showvars(grabbed_vals,names = [x.name for x in grabbed_vars], msg="The Grabbed Variables:")
 
-def showvars(vals,names=None,msg=""):
+
+def showvars(vals, names=None, msg=""):
     print("\n"+msg,end="\n")
     for i,v in enumerate(vals):
         if names: print("   " + names[i] + " = ",end="\n")
@@ -339,17 +340,31 @@ def pp_matrix(m,style='{:.3f}'):
         for c in range(cols): print(style.format(m[r][c]), end=' ')
     print()
 
+
 # *******  DATA PLOTTING ROUTINES *********
-# NOT CURRENTLY USED
-def simple_plot(yvals,xvals=None,xtitle='X',ytitle='Y',title='Y = F(X)'):
+
+def simple_plot(yvals,xvals=None,xtitle='X',ytitle='Y',title='Y = F(X)', label=None):
     xvals = xvals if xvals is not None else list(range(len(yvals)))
-    plt.plot(xvals,yvals)
+    plt.plot(xvals,yvals, label=label)
+    if not label is None:
+        plt.legend(loc='best')
     plt.xlabel(xtitle); plt.ylabel(ytitle); plt.title(title)
-    plt.legend()
     plt.draw()
 
+# Each history is a list of pairs (timestamp, value).
+def plot_training_history(error_hist,validation_hist=[],xtitle="Epoch",ytitle="Error",title="History",fig=True):
+    #plt.ion()
+    if fig: plt.figure()
+    if len(error_hist) > 0:
+        simple_plot([p[1] for p in error_hist], [p[0] for p in error_hist],xtitle=xtitle,ytitle=ytitle,title=title, label="Train error")
+    if len(validation_hist) > 0:
+        simple_plot([p[1] for p in validation_hist], [p[0] for p in validation_hist], label="Validation Error")
+    #plt.ioff()
 
+"""
+# Each history is a list of pairs (timestamp, value).
 def plot_training_history(error_hist, validation_hist=[], xlabel='Epoch', ylabel='Error', title='History'):
+    plt.ion()
     plt.figure(figsize=(8,8))
     plt.title(title)
     plt.xlabel(xlabel)
@@ -361,18 +376,7 @@ def plot_training_history(error_hist, validation_hist=[], xlabel='Epoch', ylabel
         plt.plot([x[0] for x in validation_hist], [x[1] for x in validation_hist], label='Test error')
 
     plt.legend(loc='best')
-
-"""
-# Each history is a list of pairs (timestamp, value).
-def plot_training_history(error_hist,validation_hist=[],xtitle="Epoch",ytitle="Error",title="History",fig=True):
-    plt.ion()
-    plt.legend()
-    if fig: plt.figure()
-    if len(error_hist) > 0:
-        simple_plot([p[1] for p in error_hist], [p[0] for p in error_hist],xtitle=xtitle,ytitle=ytitle,title=title)
-        plt.hold(True)
-    if len(validation_hist) > 0:
-        simple_plot([p[1] for p in validation_hist], [p[0] for p in validation_hist])
+    plt.draw()
     plt.ioff()
 """
 # alpha = transparency
@@ -401,7 +405,7 @@ def hinton_plot(matrix, maxval=None, maxsize=1, fig=None,trans=True,scale=True, 
 
     axes = hfig.gca()
     axes.clear()
-    axes.patch.set_facecolor(colors[0]);  # This is the background color.  Hinton uses gray
+    axes.patch.set_facecolor(colors[0])  # This is the background color.  Hinton uses gray
     axes.set_aspect('auto','box')  # Options: ('equal'), ('equal','box'), ('auto'), ('auto','box')..see matplotlib docs
     axes.xaxis.set_major_locator(plt.NullLocator()); axes.yaxis.set_major_locator(plt.NullLocator())
 
@@ -414,8 +418,6 @@ def hinton_plot(matrix, maxval=None, maxsize=1, fig=None,trans=True,scale=True, 
         blob = plt.Rectangle(bottom_left, size, size, facecolor=color, edgecolor=colors[3])
         axes.add_patch(blob)
     axes.autoscale_view()
-    plt.draw()
-    plt.pause(.001)
 
 # This graphically displays a matrix with color codes for positive, negative, small positive and small negative,
 # with the latter 2 defined by the 'cutoff' argument.  The transpose (trans) arg defaults to
@@ -478,6 +480,7 @@ def gen_dim_reduced_data(feature_array,target_size,eigen_values,eigen_vectors):
 # mode = single, average, complete, centroid, ward, median
 # metric = euclidean, cityblock (manhattan), hamming, cosine, correlation ... (see matplotlib distance.pdist for all 23)
 def dendrogram(features,labels,metric='euclidean',mode='average',ax=None,title='Dendrogram',orient='top',lrot=90.0):
+    plt.figure()
     ax = ax if ax else plt.gca()
     cluster_history = SCH.linkage(features,method=mode,metric=metric)
     SCH.dendrogram(cluster_history,labels=labels,orientation=orient,leaf_rotation=lrot)
