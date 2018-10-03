@@ -206,7 +206,7 @@ class Gann:
 
         testres, grabvals, _ = self.run_one_step(self.test_func, self.grabvars, self.probes, session=sess,
                                            feed_dict=feeder)
-        if bestk is None:
+        if bestk is None or bestk == 0:
             print('%s Set Error = %f ' % (msg, testres))
         else:
             print('%s Set Correct Classifications = %f %%' % (msg, 100*(testres/len(cases))))
@@ -526,14 +526,18 @@ def main():
                 new_val = int(new_val)
 
             settings[choice] = new_val
-        else:
+        elif not choice:
             break
+        else:
+            print('key not found, try again')
     ################################################
     # Feed parameters to generate dataset and create the GANN
     ################################################
     # Case generator
     if filename == 'autoencoder':
         case_generator = (lambda: TFT.gen_all_one_hot_cases(2**settings['nbits']))
+    elif filename == 'dense_autoencoder':
+        case_generator = lambda: TFT.gen_dense_autoencoder_cases(settings['case_count'], settings['data_size'], dr=settings['data_range'])
     elif filename == 'bitcounter':
         case_generator = (lambda: TFT.gen_vector_count_cases(settings['ncases'], settings['nbits']))
     elif filename == 'glass':
@@ -543,7 +547,7 @@ def main():
     elif filename == 'parity':
         case_generator = (lambda: TFT.gen_all_parity_cases(settings['nbits']))
     elif filename == 'segmentcounter':
-        settings['one_hot'] = True if settings['one_hot'] == 'True' else False
+        settings['one_hot'] = True if settings['one_hot'].lower() == 'true' else False
         case_generator = (lambda: TFT.gen_segmented_vector_cases(settings['length'],
                                                                  settings['ncases'],
                                                                  settings['min_seg'],
