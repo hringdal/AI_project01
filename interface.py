@@ -37,8 +37,12 @@ def main():
             if choice in ['network_dimensions', 'initial_weight_range', 'map_layers', 'map_dendrograms', 'display_weights', 'display_biases']:
                 new_val = new_val.split(' ')
                 new_val = [float(x) if '.' in x else int(x) for x in new_val]
+            # check for integers
             elif is_integer(new_val):
                 new_val = int(new_val)
+            # check for floats
+            elif '.' in new_val:
+                new_val = float(new_val)
 
             settings[choice] = new_val
         elif not choice:
@@ -82,6 +86,10 @@ def main():
         raise ValueError()
 
     # Case manager
+
+    print(settings['map_dendrograms'])
+    print(type(settings['map_dendrograms'][0]))
+
     case_manager = Caseman(cfunc=case_generator,
                            vfrac=settings['validation_fraction'],
                            tfrac=settings['test_fraction'],
