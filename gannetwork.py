@@ -454,7 +454,7 @@ class CaseManager:
         mean_x = np.mean(x, axis=0)
         x = x - mean_x
         std_x = np.std(x, axis=0)
-        #std_x[std_x == 0] = 1
+        std_x[std_x == 0] = 1
         x = x / std_x
         return x, mean_x, std_x
 
@@ -513,7 +513,7 @@ def autoex(epochs=300, nbits=4, learning_rate=0.03, showint=100, batch_size=None
     ann.runmore(epochs*2, bestk=bestk)
     return ann
 
-def number_of_1s(epochs=1000, nbits=15, ncases=500, learning_rate=0.05, showint=None, batch_size=32, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
+def number_of_1s(epochs=6000, nbits=15, ncases=500, learning_rate=0.05, showint=None, batch_size=32, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
     case_generator = (lambda: TFT.gen_vector_count_cases(ncases, nbits))
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
     ann = Gann(dims=[nbits, nbits*3, nbits+1], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
@@ -522,7 +522,7 @@ def number_of_1s(epochs=1000, nbits=15, ncases=500, learning_rate=0.05, showint=
     return ann
   
 
-def parity(epochs=600, nbits=10, learning_rate=0.001, showint=None, batch_size=256, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
+def parity(epochs=2000, nbits=10, learning_rate=0.001, showint=None, batch_size=256, vfrac=0.1, tfrac=0.1, vint=200, sm=True, bestk=1):
     case_generator = (lambda: TFT.gen_all_parity_cases(nbits))
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
     ann = Gann(dims=[nbits, 100, 100, 2], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
@@ -572,7 +572,7 @@ def glass(epochs=10000, learning_rate=0.0001, showint=0, batch_size=128, vfrac=0
     plt.show()
 
 
-def MNIST(epochs=200, learning_rate=0.001, showint=0, batch_size=64, data_frac=0.1, vfrac=0.1, tfrac=0.1, vint=40, sm=True, bestk=1):
+def MNIST(epochs=2000, learning_rate=0.001, showint=0, batch_size=64, data_frac=0.1, vfrac=0.1, tfrac=0.1, vint=40, sm=True, bestk=1):
     case_generator = (lambda: load_mnist(data_frac))
     case_manager = CaseManager(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac, standardizing=True)
     ann = Gann(dims=[784, 150, 10], case_manager=case_manager, learning_rate=learning_rate, showint=showint, batch_size=batch_size, vint=vint, softmax=sm)
@@ -580,5 +580,4 @@ def MNIST(epochs=200, learning_rate=0.001, showint=0, batch_size=64, data_frac=0
     # TFT.fireup_tensorboard('probeview')
     return ann
 
-
-wine()
+number_of_1s()
