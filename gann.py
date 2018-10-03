@@ -33,6 +33,46 @@ class Gann():
     def roundup_probes(self):
         self.probes = tf.summary.merge_all()
 
+    def get_values(self, modules, type='out'):
+
+        length_cases = len(self.caseman.get_testing_cases())
+        indices = np.random.choice(length_cases, 15)
+        samples = self.caseman.get_testing_cases()[indices]
+        for module in modules:
+            self.add_grabvar(module, type=type)
+
+        inputs = [c[0] for c in samples]
+        targets = [c[1] for c in samples]
+
+        feeder = {self.input: inputs, self.target: targets}
+
+        _, values, session = self.run_map_step(self.predictor, self.grabvars, session=self.current_session, feed_dict=feeder)
+
+        self.grabvars = []
+        return values, targets
+
+    def do_mapping(self, modules):
+        map_vals, _ = self.get_values(modules)
+        for layer in range(len(modules)):
+            TFT.hinton_plot(map_vals[layer], title='mapping layer ' + str(modules[layer]))
+
+    def do_dendrogram(self, modules):
+        values, targets = self.get_values(modules)
+        for layer in range(len(modules)):
+            TFT.dendrogram(values[layer], [TFT.bits_to_str(bits) for bits in targets], title="dendrogram layer"+str(modules[layer]))
+
+    def do_wgt_bias_view(self, modules, type):
+        values, _ = self.get_values(modules, type=type)
+
+
+        for layer in range(len(modules)):
+            print(layer)
+            layer_value = values[layer]
+            if type == 'bias':
+                layer_value = np.reshape(values[layer], (1, -1))
+
+            TFT.display_matrix(layer_value, title=str(type) + ' in layer ' + str(modules[layer]))
+
     def add_module(self,module):
         self.modules.append(module)
 
@@ -193,6 +233,17 @@ class Gann():
 
         return results[0], results[1], sess
 
+    def run_map_step(self, operators, grabbed_vars=None, probed_vars=None, dir='probeview',
+                  session=None, feed_dict=None, step=1):
+        sess = session if session else TFT.gen_initialized_session(dir=dir)
+        if probed_vars is not None:
+            results = sess.run([operators, grabbed_vars, probed_vars], feed_dict=feed_dict)
+            sess.probe_stream.add_summary(results[2], global_step=step)
+        else:
+            results = sess.run([operators, grabbed_vars], feed_dict=feed_dict)
+
+        return results[0], results[1], sess
+
     def run(self,epochs=100,sess=None,continued=False,bestk=None):
         #PLT.ion()
         self.training_session(epochs,sess=sess,continued=continued)
@@ -340,11 +391,25 @@ def autoex(epochs=300,nbits=4,lrate=0.03, mbs=None,vfrac=0.1,tfrac=0.1,vint=100,
     TFT.fireup_tensorboard('probeview')
     return ann
 
-def countex(epochs=2500,nbits=15,ncases=500,lrate=0.001,mbs=64,vfrac=0.1,tfrac=0.1,vint=200,sm=True,bestk=1):
+def countex(epochs=100,nbits=15,ncases=500,lrate=0.001,mbs=64,vfrac=0.1,tfrac=0.1,vint=200,sm=True,bestk=1, mapping=False, dendrogram=False, weight_bias=False):
     case_generator = (lambda: TFT.gen_vector_count_cases(ncases,nbits))
     cman = Caseman(cfunc=case_generator, vfrac=vfrac, tfrac=tfrac)
     ann = Gann(dims=[nbits, 100, nbits+1], cman=cman, lrate=lrate, mbs=mbs, vint=vint, softmax=sm)
     ann.run(epochs,bestk=bestk)
+    if mapping:
+        ann.reopen_current_session()
+        layers = [0,1]
+        ann.do_mapping(layers)
+        ann.close_current_session(view=False)
+
+    if dendrogram:
+        ann.reopen_current_session()
+        ann.do_dendrogram([0])
+        ann.close_current_session(view=False)
+    if weight_bias:
+        ann.reopen_current_session()
+        ann.do_wgt_bias_view([0,1], type='bias')
+        ann.close_current_session(view=False)
     PLT.show()
     return ann
 
