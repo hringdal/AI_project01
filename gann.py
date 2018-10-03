@@ -40,7 +40,8 @@ class Gann:
 
         length_cases = len(self.caseman.get_testing_cases())
         indices = np.random.choice(length_cases, self.settings['map_batch_size'])
-        samples = self.caseman.get_testing_cases()[indices]
+        samples = self.caseman.get_testing_cases()
+        samples = np.array(samples)[indices]
         for module in modules:
             if module == 0:
                 self.add_grabvar(module, type='in') #input of data
@@ -60,12 +61,12 @@ class Gann:
     def do_mapping(self, modules):
         map_vals, _ = self.get_values(modules)
         for layer in range(len(modules)):
-            TFT.hinton_plot(map_vals[layer], title='mapping layer ' + str(modules[layer]))
+            TFT.hinton_plot(map_vals[layer], title='Mapping Hinton Plot Layer ' + str(modules[layer]))
 
     def do_dendrogram(self, modules):
         values, targets = self.get_values(modules)
         for layer in range(len(modules)):
-            TFT.dendrogram(values[layer], [TFT.bits_to_str(bits) for bits in targets], title="dendrogram layer"+str(modules[layer]))
+            TFT.dendrogram(values[layer], [TFT.bits_to_str(bits) for bits in targets], title="Dendrogram Layer "+str(modules[layer]))
 
     def do_wgt_bias_view(self, modules, type):
         values, _ = self.get_values(modules, type=type)
