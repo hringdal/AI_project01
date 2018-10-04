@@ -87,9 +87,6 @@ def main():
 
     # Case manager
 
-    print(settings['map_dendrograms'])
-    print(type(settings['map_dendrograms'][0]))
-
     case_manager = Caseman(cfunc=case_generator,
                            vfrac=settings['validation_fraction'],
                            tfrac=settings['test_fraction'],

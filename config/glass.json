@@ -16,7 +16,7 @@
     "epochs" : 10000,
     "map_batch_size" : 15,
     "map_layers" : [],
-    "map_dendrograms" : [0, 1, 2, 3, 4],
+    "map_dendrograms" : [],
     "display_weights" : [],
     "display_biases" : [],
     "sm": 1,
